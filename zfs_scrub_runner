@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Script to scrub all pools, recommended to run weekly in cron
+
+date="$(date)"
+
+pools=($(zpool list | grep -v NAME | awk '{print $1}'))
+
+for pool in "${pools[@]}"
+do
+	zpool scrub $pool
+	echo $date Scrub started on pool: $pool >> /var/log/zfs.log
+done

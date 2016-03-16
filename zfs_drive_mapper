@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# Script to generate zfs drive map from serial number to device, run at initial zpool create
+# PUT THIS SCRIPT IN /etc/rc.local SO IT RUNS ON BOOT TO PICK UP NEW ASSIGNMENTS
+
+map_path=/root/disk_map
+date="$(date)"
+
+rm -rf $map_path
+
+devices=($(ls /dev/ | grep sd | grep -v '[0-9]'))
+
+for d in "${devices[@]}"
+do
+	path=($(udevadm info --query=property /dev/$d | grep ID_PATH= | cut -d'=' -f2))
+	enclosure=($(ls -la /sys/class/block/$d/device/ | grep enclosure | cut -d'/' -f10))
+	slot="$(ls -la /sys/class/block/$d/device/ | grep enclosure | cut -d'/' -f11)"
+	echo $path $enclosure $slot >> $map_path
+done
+
+echo $date Drive Map Updated >> /var/log/zfs.log

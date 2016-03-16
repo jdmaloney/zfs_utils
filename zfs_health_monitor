@@ -1,0 +1,46 @@
+#!/bin/bash
+
+# Script to watch the health of zpools, for non-failure related errors
+
+date="$(date)"
+pools=($(zpool list | grep -v NAME | awk '{print $1}'))
+admin_email=
+
+# Capacity Checker
+used=($(zpool list | grep -v NAME | awk '{print $7}' | cut -d'%' -f1))
+count=0
+for amount in "${used[@]}"
+do
+	if [ $amount -ge 90 ]; then
+		echo $date Pool: ${pools[$count]} Capacity Alert >> /var/log/zfs.log
+		count=$((count+1))
+		echo Pool: ${pools[$count]} has reached 90% capacity | mail -s "ZFS Capacity Alert" $admin_email
+	else
+		echo $date Pool: ${pools[$count]} Below Alert Capcity Level >> /var/log/zfs.log
+		count=$((count+1))
+	fi
+done
+
+# Error Checker
+for pool in "${pools[@]}"
+do
+	flag=0
+	error_counts=($(zpool status $pool | sed -n -e '/NAME/,$p' | grep -v NAME | awk '{print $3$4$5}' | grep -v -e '^$' | grep -v known))
+
+	for v in "${error_counts[@]}"
+	do
+		if [ $v -ne 000 ]; then
+			flag=1
+		else
+			echo no change > /dev/null
+		fi
+	done
+	if [ $flag -eq "1" ]; then
+		echo $date Errors found in pool $pool >> /var/log/zfs.log
+		/usr/sbin/zpool status | mail -s "ZFS Error Alert" $admin_email
+	else
+		echo $date No Errors found in pool $pool >> /var/log/zfs.log
+	fi
+done
+
+

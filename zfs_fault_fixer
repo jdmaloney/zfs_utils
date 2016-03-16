@@ -1,0 +1,63 @@
+#!/bin/bash
+
+# Script to clean up after failed disks in ZFS disk array, run after replacing all failed disks
+
+fail_path=/root/failed_disks
+new_vdev_path=/root/zfs/zfs_vdev_creator
+map_path=/root/disk_map
+new_map_path=/root/zfs/zfs_drive_mapper
+date="$(date)"
+dev=($(cat $fail_path))
+pools=($(/usr/sbin/zpool list | grep -v NAME | awk '{print $1}'))
+resilver=0
+
+echo Generating New vdev config file
+$new_vdev_path
+sleep 5
+echo Generating New map file
+$new_map_path
+for d in "${dev[@]}"
+do
+	for p in ${pools[@]}
+	do
+		check=($(/usr/sbin/zpool status $p | grep $d))
+		if [ -z $check ]; then
+			echo skip > /dev/null
+		else
+			pool=$p
+		fi
+	done
+	id=$(cat /etc/zfs/vdev_id.conf | grep $d | awk '{print $3}' | cut -d'/' -f5)
+	echo New Drive ID: $id
+	enclosure=$(echo $d | cut -c 3- | cut -d'_' -f1)
+	slot=$(echo $d | cut -d'_' -f3 | cut -c 3-)
+	backplane=$(cat $map_path | grep $id | awk '{print $2}')
+	echo Drive Backplane: $backplane
+	i=1
+	while [ $i -lt 6 ]
+	do
+		/usr/sbin/zpool replace $pool $d -f
+		sleep 2
+		success=$(/usr/sbin/zpool status | grep $d | grep resilvering)
+        	if [ -z "$success" ]; then
+                	resilver=0
+			sleep 3
+			i=$((i+1))
+        	else
+                        resilver=1
+                        echo 0 > /sys/class/enclosure/$backplane/"Slot $slot"/fault
+                        echo $date Fault LED for $d has been turned off >> /var/log/zfs.log
+			echo Drive Replacement Successful on attempt number: $i
+                	i=6
+        	fi
+	done
+	echo $date Device: $od replaced with $d >> /var/log/zfs.log
+done
+if [ $resilver -eq 1 ]; then
+	echo $date Failed Drives Replaced Rebuild Initiated >> /var/log/zfs.log
+	echo REBUILDING > /tmp/zfs_status
+	cat $fail_path >> /tmp/zfs_rebuilding
+	rm -rf $fail_path
+else
+	echo Error Initiating Rebuild -- Check zpool status
+fi
