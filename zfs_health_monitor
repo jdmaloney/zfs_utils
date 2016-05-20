@@ -43,4 +43,26 @@ do
 	fi
 done
 
-
+# Temperature Checker
+drives=($(lsscsi | grep ATA | awk '{print $6}'))
+error=0
+for d in ${drives[@]}
+do
+	temp=$(hddtemp $d | awk '{print $3}' | cut -c -2)
+	if [ $temp -lt 46 ]; then
+		echo Drive good > /dev/null
+	elif [ $temp -gt 45 ]; then
+		id=$(udevadm info --query=property $d | grep ID_PATH= | cut -d"=" -f2)
+                name=$(cat /etc/zfs/vdev.conf | grep $id | awk '{print $2}')
+                echo Drive $name Temperature over 45C, please check immidiately | mail -s "Drive Temperature Alert" $admin_email
+                echo Drive $name Temperature Alert ${temp}C >> /var/log/zfs.log
+		error=$((error+1))
+	else
+		echo Error reading drive temp >> /var/log/zfs.log
+	fi
+	if [ $error -eq 0 ]; then
+		echo All drive temps under threshold >> /var/log/zfs.log
+	else
+		echo Nope > /dev/null
+	fi
+done
