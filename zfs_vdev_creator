@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Custmomize Based on Enclosure
-# Enclosure design, Supermicro 45 drive SAS II JBOD, stacked 1-2 bottom to top
+# Enclosure design, Supermicro 45 drive SAS II JBOD
 
-enclosures=$(ls /sys/class/enclosure/)
+enclosures=$(ls /sys/class/enclosure/ | grep "1:")
 #Number of backplanes per physical enclosure
 perchassis=2
 count=0
