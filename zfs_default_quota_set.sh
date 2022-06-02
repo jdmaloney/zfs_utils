@@ -19,7 +19,7 @@ while IFS= read -r line; do
 			/usr/sbin/zfs set userobjquota@${username}=${def_obj_quota} ${dataset_path}
 		fi
 	fi
-done < <(/usr/sbin/zfs userspace ${dataset_path} | tail -n +2 | awk '{print $3" "$5" "$7}')
+done < <(/usr/sbin/zfs userspace -H ${dataset_path} | awk '{print $3" "$5" "$7}')
 
 
 while IFS= read -r line; do
@@ -32,4 +32,4 @@ while IFS= read -r line; do
                         /usr/sbin/zfs set groupobjquota@${groupname}=${def_obj_quota} ${dataset_path}
                 fi
         fi
-done < <(/usr/sbin/zfs groupspace ${dataset_path} | tail -n +2 | awk '{print $3" "$5" "$7}')
+done < <(/usr/sbin/zfs groupspace -H ${dataset_path} | awk '{print $3" "$5" "$7}')
