@@ -15,8 +15,8 @@ while IFS= read -r line; do
 		## Quota not set right
 		if ! printf '%s\0' "${users_exempt[@]}" | grep -Fxqz ${username}; then
 			## User is not exempt from quota enforcement
-			/usr/sbin/zfs set userquota@${username}=${def_block_quota} ${dataset_path}
-			/usr/sbin/zfs set userobjquota@${username}=${def_obj_quota} ${dataset_path}
+			/usr/sbin/zfs set userquota@${username}=${def_ublock_quota} ${dataset_path}
+			/usr/sbin/zfs set userobjquota@${username}=${def_uobj_quota} ${dataset_path}
 		fi
 	fi
 done < <(/usr/sbin/zfs userspace -H ${dataset_path} | awk '{print $3" "$5" "$7}')
@@ -28,8 +28,8 @@ while IFS= read -r line; do
                 ## Quota not set right
                 if ! printf '%s\0' "${groups_exempt[@]}" | grep -Fxqz ${groupname}; then
                         ## Group is not exempt from quota enforcement
-                        /usr/sbin/zfs set groupquota@${groupname}=${def_block_quota} ${dataset_path}
-                        /usr/sbin/zfs set groupobjquota@${groupname}=${def_obj_quota} ${dataset_path}
+                        /usr/sbin/zfs set groupquota@${groupname}=${def_gblock_quota} ${dataset_path}
+                        /usr/sbin/zfs set groupobjquota@${groupname}=${def_gobj_quota} ${dataset_path}
                 fi
         fi
 done < <(/usr/sbin/zfs groupspace -H ${dataset_path} | awk '{print $3" "$5" "$7}')
