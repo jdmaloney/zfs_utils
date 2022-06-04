@@ -1,0 +1,36 @@
+#!/bin/bash
+
+pushd $(dirname "$0") > /dev/null
+source ./zfs_utils.conf
+date=$(date +%Y-%m-%d_%H-%M-%S)
+datasets=($(/usr/sbin/zfs list -H | awk '{print $1}' | xargs))
+
+for d in ${datasets[@]}
+do
+	if ! printf '%s\0' "${snap_exempt_datasets[@]}" | grep -Fxqz ${d}; then
+#		/usr/sbin/zfs snapshot ${d}@${date}
+		snap_list=($(zfs list -t snapshot -H | awk -v dataset=${d} '$1 ~ dataset"@" {print $1}'))
+		num_snaps_present=${#snap_list[@]}
+		for s in ${snap_custom_retention[@]}
+		do
+			dataset_name=$(echo ${s} | cut -d';' -f 1)
+			if [ ${dataset_name} == "${d}" ]; then
+				snaps_kept=$(echo ${s} | cut -d';' -f 2)
+			else
+				snaps_kept=${default_snaps_kept}
+			fi
+		done
+		if [ -z "${snaps_kept}" ]; then
+			snaps_kept=${default_snaps_kept}
+		fi
+		if [ ${snaps_kept} -lt ${num_snaps_present} ]; then
+			num_snaps_to_delete=$((num_snaps_present-snaps_kept))
+			snaps_to_delete=($(zfs list -t snapshot -H | awk -v dataset=${d} '$1 ~ dataset"@" {print $1}' | head -${num_snaps_to_delete}))
+			for s in ${snaps_to_delete[@]}
+			do
+				echo "/usr/sbin/zfs destroy ${s}"
+#				/usr/sbin/zfs destroy ${s}
+			done
+		fi
+	fi
+done

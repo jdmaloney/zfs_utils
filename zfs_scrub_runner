@@ -1,13 +1,17 @@
 #!/bin/bash
 
-# Script to scrub all pools, recommended to run weekly in cron
+# Script to scrub ZFS pools, recommended to run weekly in cron
 
+pushd $(dirname "$0") > /dev/null
+source ./zfs_utils.conf
 date="$(date)"
 
-pools=($(zpool list | grep -v NAME | awk '{print $1}'))
+pools=($(/usr/sbin/zpool list | grep -v NAME | awk '{print $1}'))
 
 for pool in "${pools[@]}"
 do
-	zpool scrub $pool
-	echo $date Scrub started on pool: $pool >> /var/log/zfs.log
+	if ! printf '%s\0' "${scrub_exempt_pools}[@]}" | grep -Fxqz ${pool}; then
+		/user/sbin/zpool scrub $pool
+		echo $date Scrub started on pool: $pool >> "${zfs_log}"
+	fi
 done
