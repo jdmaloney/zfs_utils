@@ -1,13 +1,7 @@
 #!/bin/bash
 
-## Config Block
-def_ublock_quota=""
-def_uobj_quota=""
-def_gblock_quota=""
-def_gobj_quota=""
-dataset_path=""
-users_exempt=()
-groups_exempt=()
+pushd $(dirname "$0") > /dev/null
+source ./zfs_utils.conf
 
 while IFS= read -r line; do
 	IFS=" " read -r username block_quota obj_quota <<< "${line}"
