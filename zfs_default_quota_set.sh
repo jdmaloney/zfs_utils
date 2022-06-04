@@ -17,6 +17,7 @@ while IFS= read -r line; do
 			## User is not exempt from quota enforcement
 			/usr/sbin/zfs set userquota@${username}=${def_ublock_quota} ${dataset_path}
 			/usr/sbin/zfs set userobjquota@${username}=${def_uobj_quota} ${dataset_path}
+			echo "Set default quotas for user ${username} at $(date +%Y-%m-%d_%H-%M-%S)" >> "${zfs_log}"
 		fi
 	fi
 done < <(/usr/sbin/zfs userspace -H ${dataset_path} | awk '{print $3" "$5" "$7}')
@@ -30,6 +31,7 @@ while IFS= read -r line; do
                         ## Group is not exempt from quota enforcement
                         /usr/sbin/zfs set groupquota@${groupname}=${def_gblock_quota} ${dataset_path}
                         /usr/sbin/zfs set groupobjquota@${groupname}=${def_gobj_quota} ${dataset_path}
+			echo "Set default quotas for group ${groupname} at $(date +%Y-%m-%d_%H-%M-%S)" >> "${zfs_log}"
                 fi
         fi
 done < <(/usr/sbin/zfs groupspace -H ${dataset_path} | awk '{print $3" "$5" "$7}')
