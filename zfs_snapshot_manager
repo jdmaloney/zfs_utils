@@ -7,8 +7,10 @@ datasets=($(/usr/sbin/zfs list -H | awk '{print $1}' | xargs))
 
 for d in ${datasets[@]}
 do
+	start_time="$(date -u +%s.%N)"
 	if ! printf '%s\0' "${snap_exempt_datasets[@]}" | grep -Fxqz ${d}; then
-#		/usr/sbin/zfs snapshot ${d}@${date}
+		/usr/sbin/zfs snapshot ${d}@${date}
+		snap_create_rc=$?
 		snap_list=($(zfs list -t snapshot -H | awk -v dataset=${d} '$1 ~ dataset"@" {print $1}'))
 		num_snaps_present=${#snap_list[@]}
 		for s in ${snap_custom_retention[@]}
@@ -28,9 +30,19 @@ do
 			snaps_to_delete=($(zfs list -t snapshot -H | awk -v dataset=${d} '$1 ~ dataset"@" {print $1}' | head -${num_snaps_to_delete}))
 			for s in ${snaps_to_delete[@]}
 			do
-				echo "/usr/sbin/zfs destroy ${s}"
-#				/usr/sbin/zfs destroy ${s}
+				/usr/sbin/zfs destroy ${s}
 			done
 		fi
+		snap_delete_rc=$?
 	fi
+	end_time="$(date -u +%s.%N)"
+	case ${influxdb_send} in
+		v1)
+			elapsed_time="$(bc <<<"$end_time-$start_time")"
+			timestamp=$(date +%s%N)
+			curl -XPOST -u ${INFLUX_USER}:${INFLUX_PASS} "https://${INFLUXSERVER}:8086/write?db=${INFLUXDATABASE}" --data-binary "zfs_snapstat,dataset=${d} snap_create_exit=${snap_create_rc},snap_delete_exit=${snap_delete_rc},elapsed_time=${elapsed_time} ${timestamp}"
+		v2)
+			elapsed_time="$(bc <<<"$end_time-$start_time")"
+			curl --request POST "https://${INFLUXSERVER}:8086/api/v2/write?org=${v2ORG}&bucket=${v2BUCKET}&precision=ns" --header "Content-Type: text/plain; charset=utf-8" --header "Accept: application/json" --data-binary "zfs_snapstat,dataset=${d} snap_create_exit=${snap_create_rc},snap_delete_exit=${snap_delete_rc},elapsed_time=${elapsed_time} ${timestamp}"
+	esac
 done
